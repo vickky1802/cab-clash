@@ -82,7 +82,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
 #s0{color:var(--teal)} #s1{color:var(--yellow);justify-content:flex-end}
 #mid{font:700 15px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:center}
 @media (prefers-reduced-motion:reduce){.half{transition:none}}
-#mid a{color:var(--ink);text-decoration:none;border:1px solid #3a4050;border-radius:8px;padding:4px 10px;display:inline-block;margin-top:2px}
+#mid a,#mid button{font:700 15px var(--body);letter-spacing:.06em;text-transform:none;background:none;cursor:pointer;color:var(--ink);text-decoration:none;border:1px solid #3a4050;border-radius:8px;padding:4px 10px;display:inline-block;margin-top:2px}
 </style>
 </head>
 <body>
@@ -97,6 +97,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:h
   <section class="half" id="p1"></section>
 </div>
 
+<script src="sfx.js"></script>
 <script>
 const P=['Teal','Yellow'], TARGET=5;
 const halves=[document.getElementById('p0'),document.getElementById('p1')];
@@ -126,9 +127,9 @@ function quiz(name,rule,make){
     },
     tap(i,a){
       if(a==null||g.locked[i])return;
-      if(String(a)===String(g.q.answer)) award(i,g.q.note,'They got it first');
+      if(String(a)===String(g.q.answer)){SFX.play('right');award(i,g.q.note,'They got it first');}
       else{
-        g.locked[i]=true;halves[i].classList.add('locked');buzz(80);
+        g.locked[i]=true;halves[i].classList.add('locked');buzz(80);SFX.play('wrong');
         if(g.locked[0]&&g.locked[1]) award(null,g.q.note);
       }
     }};
@@ -141,7 +142,7 @@ const GAMES=[
     start(){
       state='play';g={go:false};
       both(i=>set(i,'<div class="big">Wait…</div><div class="rule">Hands steady</div>','wait'));
-      later(()=>{g.go=true;buzz(40);both(i=>set(i,'<div class="huge">TAP!</div>','go'))},1600+Math.random()*3400);
+      later(()=>{g.go=true;buzz(40);SFX.play('go');both(i=>set(i,'<div class="huge">TAP!</div>','go'))},1600+Math.random()*3400);
     },
     tap(i){ if(!g.go) award(1-i,`${P[i]} jumped the light`,'Jumped the light'); else award(i,'Fastest hands in the cab','Too slow'); }
   },
@@ -156,7 +157,7 @@ const GAMES=[
         if(a===b) award(null,note); else award(a>b?0:1,note,note);
       },5000);
     },
-    tap(i){ g.n[i]++; const c=halves[i].querySelector('[data-count]'); if(c)c.textContent=g.n[i]; }
+    tap(i){ g.n[i]++;SFX.play('tap'); const c=halves[i].querySelector('[data-count]'); if(c)c.textContent=g.n[i]; }
   },
   quiz('Mental Math','First correct answer wins. A wrong answer locks you out.',()=>{
     const t=ri(0,2);let a,b,ans,s;
@@ -217,7 +218,7 @@ const GAMES=[
       for(let k=0;k<n;k++){let s;do{s=ri(0,4)}while(s===prev);seq.push(s);prev=s}
       seq.push(prev);g={seq,k:-1,match:false};
       const step=()=>{
-        g.k++;const s=SYM[g.seq[g.k]];g.match=g.k===g.seq.length-1;
+        g.k++;const s=SYM[g.seq[g.k]];g.match=g.k===g.seq.length-1;SFX.play('pop');
         both(i=>set(i,`<div class="who">${P[i]}</div><div class="sym" style="color:${s[1]}">${s[0]}</div><div class="rule">Tap only on a repeat</div>`,'play'));
         if(g.match)later(()=>award(null,'Both of you missed the snap'),1800);else later(step,ri(750,1100));
       };
@@ -237,7 +238,7 @@ const GAMES=[
       tick();later(finishClock,(target+5)*1000);
     },
     tap(i){
-      if(g.t[i]!=null)return;g.t[i]=(performance.now()-g.t0)/1000;buzz(30);
+      if(g.t[i]!=null)return;g.t[i]=(performance.now()-g.t0)/1000;buzz(30);SFX.play('lock');
       set(i,`<div class="who">${P[i]}</div><div class="big">Locked in</div><div class="rule">Waiting for ${P[1-i]}</div>`,'wait');
       if(g.t[1-i]!=null)finishClock();
     }
@@ -250,7 +251,7 @@ const GAMES=[
       for(let s=9;s>0;s--)later(()=>strip(s+'s left'),(10-s)*1000);
       later(()=>{const p=g.pos;if(p===0)award(null,'Dead even');else{const w=p>0?1:0;award(w,`Ahead by ${Math.abs(p)} pulls at the buzzer`,'Behind at the buzzer')}},10000);
     },
-    tap(i){ g.pos+=i===1?1:-1;drawTug(); if(Math.abs(g.pos)>=15)award(i,'Dragged it over the line','Pulled over the line'); }
+    tap(i){ g.pos+=i===1?1:-1;SFX.play('tap');drawTug(); if(Math.abs(g.pos)>=15)award(i,'Dragged it over the line','Pulled over the line'); }
   }
 ];
 function drawTug(){
@@ -267,7 +268,7 @@ function finishClock(){
 /* ---------- Flow ---------- */
 function menu(){
   clearTimers();state='menu';ready=[false,false];score=[0,0];round=0;bag=[];lastGame=null;strip('First to 5');
-  document.getElementById('mid').innerHTML='First to 5<br><a href="./">‹ Menu</a>';
+  document.getElementById('mid').innerHTML='First to 5<br><a href="./">‹ Menu</a> <button type="button" data-sfx-toggle>'+SFX.label()+'</button>';
   both(i=>set(i,`<div class="who">${P[i]}</div><div class="big">Tap to ready</div><div class="rule">Hold the phone flat between you. The half facing you is yours.</div>`,'idle'));
 }
 function pickGame(){
@@ -278,16 +279,16 @@ function pickGame(){
 function nextRound(){
   clearTimers();round++;game=pickGame();state='intro';strip('Round '+round);
   both(i=>set(i,`<div class="who">${P[i]}</div><div class="big">${game.name}</div><div class="rule">${game.rule}</div>`,'idle'));
-  ['3','2','1'].forEach((n,k)=>later(()=>{strip(n);both(i=>{const p=halves[i].querySelector('.panel');let c=p.querySelector('.huge');if(!c){c=document.createElement('div');c.className='huge';p.appendChild(c)}c.textContent=n})},2200+k*650));
-  later(()=>{strip('Round '+round);game.start()},2200+3*650);
+  ['3','2','1'].forEach((n,k)=>later(()=>{strip(n);SFX.play('tick');both(i=>{const p=halves[i].querySelector('.panel');let c=p.querySelector('.huge');if(!c){c=document.createElement('div');c.className='huge';p.appendChild(c)}c.textContent=n})},2200+k*650));
+  later(()=>{strip('Round '+round);SFX.play('go');game.start()},2200+3*650);
 }
 function award(w,note,loseMsg){
   if(state!=='play')return;
   clearTimers();state='result';
   if(w===null){
-    both(i=>set(i,`<div class="big">No point</div><div class="rule">${note}</div>`,'idle'));
+    SFX.play('nopoint');both(i=>set(i,`<div class="big">No point</div><div class="rule">${note}</div>`,'idle'));
   }else{
-    score[w]++;buzz([60,40,60]);
+    score[w]++;buzz([60,40,60]);SFX.play('point');
     set(w,`<div class="who">${P[w]}</div><div class="huge">+1</div><div class="rule">${note}</div>`,'win');
     set(1-w,`<div class="who">${P[1-w]}</div><div class="big">${loseMsg||'Too slow'}</div><div class="rule">${note}</div>`,'lose');
   }
@@ -295,16 +296,16 @@ function award(w,note,loseMsg){
   later(()=>{ if(score[0]>=TARGET||score[1]>=TARGET) finale(); else nextRound(); },2000);
 }
 function finale(){
-  state='over';const w=score[0]>score[1]?0:1;strip('Final '+score[0]+' – '+score[1]);
+  state='over';const w=score[0]>score[1]?0:1;SFX.play('fanfare');strip('Final '+score[0]+' – '+score[1]);
   set(w,`<div class="who">${P[w]}</div><div class="big">Champion of the back seat</div><div class="rule">Final score ${score[w]} – ${score[1-w]}</div>`,'win');
   set(1-w,`<div class="who">${P[1-w]}</div><div class="big">Snacks are on you</div><div class="rule">Final score ${score[1-w]} – ${score[w]}</div>`,'lose');
   later(()=>{state='rematch';both(i=>halves[i].querySelector('.panel').insertAdjacentHTML('beforeend','<div class="rule"><b>Tap for a rematch</b></div>'))},1400);
 }
 function handle(i,a){
   if(state==='menu'){
-    if(ready[i])return;ready[i]=true;wake();buzz(30);
+    if(ready[i])return;ready[i]=true;wake();buzz(30);SFX.play('blip');
     set(i,`<div class="who">${P[i]}</div><div class="big">Ready</div><div class="rule">${ready[1-i]?'Here we go':'Waiting for '+P[1-i]}</div>`,'win');
-    if(ready[0]&&ready[1]){state='starting';later(nextRound,800)}
+    if(ready[0]&&ready[1]){state='starting';SFX.play('honk');later(nextRound,800)}
   }else if(state==='play'){game.tap(i,a)}
   else if(state==='rematch'){menu()}
 }

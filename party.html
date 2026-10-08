@@ -112,6 +112,7 @@ body{background:var(--night);color:var(--ink);font-family:var(--body);font-size:
   <main class="stage" id="stage"><div class="panel"><div class="big">Cab Clash</div><div class="rule">Loading…</div></div></main>
 </div>
 <script src="https://unpkg.com/mqtt@5.10.4/dist/mqtt.min.js"></script>
+<script src="sfx.js"></script>
 <script>
 /* ---------- state ---------- */
 /* Messages travel through several free public MQTT brokers at once; each phone uses whichever it can reach. */
@@ -120,7 +121,7 @@ const COLORS=['#f6c432','#2fd4c4','#ff6ad5','#5b95ff','#ff9b42','#a78bfa','#38d9
 const MAXP=8, NS='cabclash/v2/', ALPH='ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const stage=document.getElementById('stage');
 let local={k:'',done:false},screen='',tapFn=null,timers=[];
-let roundsPick=8,hostBag=[],lastG=-1;
+let lobbyCount=0,roundsPick=8,hostBag=[],lastG=-1;
 let role=null,code='',base='',myName='',clients=[],seq=0,curHost='',everOpen=false,lastSeen=0,hbT=null,joinT=null,lastRep=null;
 let view={st:{ph:'lobby'},players:[]};
 const H={players:{},order:[],st:{ph:'lobby'},rej:[]};
@@ -311,8 +312,8 @@ function sprint(name,rule,gen){
         panel(`<div class="prog">${[0,1,2,3,4].map(j=>`<i class="${j<=k?'on':''}"></i>`).join('')}</div>${q.prompt}<div class="opts ${cls}">${btns}</div>`);
         tapFn=a=>{
           if(a==null)return;
-          if(String(a)===String(q.answer)){ok++;buzz(15)}
-          else{pen+=3;buzz(120);stage.classList.add('miss');setTimeout(()=>stage.classList.remove('miss'),220)}
+          if(String(a)===String(q.answer)){ok++;buzz(15);if(k<4)SFX.play('right')}
+          else{pen+=3;buzz(120);SFX.play('wrong');stage.classList.add('miss');setTimeout(()=>stage.classList.remove('miss'),220)}
           k++;if(k<5)show();else{const v=(performance.now()-t0)/1000+pen;done(v,`${ok}/5 right · ${v.toFixed(1)}s`)}
         };
       };
@@ -325,12 +326,12 @@ const GAMES=[
     play(done){
       let go=0;panel('<div class="big">Wait…</div><div class="rule">Hands steady</div>','wait');
       tapFn=()=>{if(!go)done(0,'Jumped the light',true);else{const ms=performance.now()-go;done(ms,Math.round(ms)+' ms')}};
-      later(()=>{go=performance.now();buzz(40);panel('<div class="huge">TAP!</div>','go')},1600+R()*3400);
+      later(()=>{go=performance.now();buzz(40);SFX.play('go');panel('<div class="huge">TAP!</div>','go')},1600+R()*3400);
     }},
   {name:'Tap Frenzy',rule:'Five seconds. Tap the screen as many times as you can.',max:6000,
     play(done){
       let n=0;panel('<div class="huge" id="cnt">0</div><div class="rule" id="left">5s left</div>','go');
-      tapFn=()=>{n++;const c=document.getElementById('cnt');if(c)c.textContent=n};
+      tapFn=()=>{n++;SFX.play('tap');const c=document.getElementById('cnt');if(c)c.textContent=n};
       for(let s=4;s>0;s--)later(()=>{const l=document.getElementById('left');if(l)l.textContent=s+'s left'},(5-s)*1000);
       later(()=>done(-n,n+' taps'),5000);
     }},
@@ -341,7 +342,7 @@ const GAMES=[
       for(let k=0;k<n;k++){let s;do{s=ri(0,4)}while(s===prev);seq.push(s);gaps.push(ri(750,1100));prev=s}
       seq.push(prev);let k=-1,shownAt=0;
       const step=()=>{
-        k++;const s=SYM[seq[k]];shownAt=performance.now();
+        k++;const s=SYM[seq[k]];shownAt=performance.now();SFX.play('pop');
         panel(`<div class="sym" style="color:${s[1]}">${s[0]}</div><div class="rule">Tap only on a repeat</div>`);
         if(k===seq.length-1)later(()=>done(0,'Missed the snap',true),1800);else later(step,gaps[k]);
       };
@@ -424,7 +425,8 @@ function renderHome(){
     <button class="btn" data-act="create">Create a party</button>
     <div class="or">or join one</div>
     <div class="joinrow"><input class="field code" id="cd" maxlength="4" placeholder="CODE" value="${esc(q)}" autocomplete="off" autocapitalize="characters" aria-label="Party code"><button class="btn ghost" data-act="join">Join</button></div>
-    <div class="note" id="msg">Up to ${MAXP} players. Keep this page open while you play.</div>`);
+    <div class="note" id="msg">Up to ${MAXP} players. Keep this page open while you play.</div>
+    <button class="btn ghost small" type="button" data-sfx-toggle>${SFX.label()}</button>`);
   stage.classList.add('form');
 }
 function takeName(){
@@ -440,24 +442,26 @@ function renderLobby(){
   });
   setHTML(document.getElementById('plist'),view.players.map((p,i)=>`<div class="row ${p.pid===myPid?'me':''} ${p.on?'':'out'}"><i class="dot-c" style="background:${colorOf(p.pid)}"></i><span class="nm">${esc(p.name)}</span><span class="badge">${i===0?'Host':''}</span><span class="badge">${p.pid===myPid?'You':p.on?'':'Away'}</span></div>`).join(''));
   const n=view.players.filter(p=>p.on).length;
+  if(n>lobbyCount&&lobbyCount>0)SFX.play('blip');lobbyCount=n;
   setHTML(document.getElementById('hctl'),role==='host'
     ?`<div class="eyebrow">Rounds</div><div class="pick">${[5,8,12].map(r=>`<button data-act="rounds" data-n="${r}" class="${r===roundsPick?'on':''}">${r}</button>`).join('')}</div>
       <button class="btn" data-act="start" ${n<2?'disabled':''}>${n<2?'Waiting for players…':`Start · ${n} players`}</button>
-      <div class="note">Friends join with the code or the link.</div>`
+      <div class="note">Friends join with the code or the link.</div><button class="btn ghost small" type="button" data-sfx-toggle>${SFX.label()}</button>`
     :`<div class="note">Waiting for ${esc(view.players[0]?view.players[0].name:'the host')} to start the match.</div>`);
 }
 function startLocalRound(st){
   clearTimers();tapFn=null;
   R=mulberry(st.seed);const G=GAMES[st.g],key=st.m+':'+st.r;
   panel(`<div class="eyebrow">Round ${st.r} of ${st.rounds}</div><div class="big">${G.name}</div><div class="rule">${G.rule}</div><div class="huge" id="cd">&nbsp;</div>`);
-  ['3','2','1'].forEach((n,k)=>later(()=>{const c=document.getElementById('cd');if(c)c.textContent=n},1600+k*700));
+  if(st.r===1)SFX.play('honk');
+  ['3','2','1'].forEach((n,k)=>later(()=>{const c=document.getElementById('cd');if(c)c.textContent=n;SFX.play('tick')},1600+k*700));
   later(()=>{
     let fin=false;
     const done=(v,d,dq)=>{if(fin)return;fin=true;clearTimers();tapFn=null;local.done=true;
-      sendRep({k:key,v:dq?null:Math.round(v*1000)/1000,dq:!!dq,d});buzz(30);
+      sendRep({k:key,v:dq?null:Math.round(v*1000)/1000,dq:!!dq,d});buzz(30);SFX.play(dq?'wrong':'lock');
       panel(`<div class="eyebrow">Locked in</div><div class="big">${esc(d)}</div><div class="list" id="wl"></div>`,dq?'miss':'');
       updateWaiting(view.st)};
-    G.play(done);
+    SFX.play('go');G.play(done);
   },1600+3*700);
 }
 function updateWaiting(st){
@@ -471,10 +475,12 @@ function renderBoard(st,final){
     <span class="nm">${esc(nameOf(id))}<span class="sub">${final?'':esc(st.res[id]||'')}</span></span>
     <span class="pts">${final?'':'+'+(st.pts[id]||0)}</span><span class="tot">${st.tot[id]||0}</span></div>`).join('');
   if(!final){
+    SFX.play((st.pts[myPid]||0)>0?'point':'nopoint');
     panel(`<div class="eyebrow">Round ${st.r} · ${esc(GAMES[st.g]?GAMES[st.g].name:'Results')}</div><div class="big">${(st.pts[myPid]||0)>0?'+'+st.pts[myPid]+' points':'No points'}</div><div class="list">${rows}</div><div class="note">${st.r>=st.rounds?'Final scores next':'Next round starting…'}</div>`);
     return;
   }
   const top=st.tot[ids[0]]||0,winners=ids.filter(id=>(st.tot[id]||0)===top);
+  SFX.play(winners.includes(myPid)?'fanfare':'lose');
   const head=winners.length>1?'It’s a tie':`${esc(nameOf(winners[0]))} wins the ride`;
   panel(`<div class="eyebrow">Final standings</div><div class="big">${head}</div><div class="list">${rows}</div>
     <div class="note">${ids.length>1?esc(nameOf(ids[ids.length-1]))+' buys the snacks.':''}</div>
