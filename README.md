@@ -9,7 +9,7 @@ Quick-fire mini-games for bored passengers, playable in any phone browser.
 
 ## How party mode works
 
-Plain static files, no backend. Phones connect directly with WebRTC through [PeerJS](https://peerjs.com); the free PeerJS cloud server only introduces the phones to each other. The host's phone referees the match, so the host must keep the page open.
+Plain static files, no backend of its own. Phones exchange small JSON messages through three free public MQTT brokers at once (EMQX, HiveMQ and Mosquitto, over secure WebSockets); each phone uses whichever brokers it can reach, so one being down or blocked doesn't stop the game. The host's phone referees the match, so the host must keep the page open. Party codes are not secret: anyone with the code can join.
 
 ## Run locally
 
