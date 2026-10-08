@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#13151b">
+<meta name="description" content="Two players, one phone, twelve rapid mini-games.">
+<title>Cab Clash · One Phone</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 4 4'%3E%3Crect width='4' height='4' fill='%2313151b'/%3E%3Cpath d='M0 0h1v1H0zM2 0h1v1H2zM1 1h1v1H1zM3 1h1v1H3zM0 2h1v1H0zM2 2h1v1H2zM1 3h1v1H1zM3 3h1v1H3z' fill='%23f6c432'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Rubik+Mono+One&family=Barlow+Condensed:wght@500;700&display=swap">
+<style>
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%;margin:0}
+#app{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+
+/* Layout: one phone, two players face to face. Top half is flipped 180°, a taxi-checker strip runs between them. */
+:root{
+  --night:#13151b;
+  --ink:#f3efe4;
+  --dim:#8a8f9e;
+  --teal:#2fd4c4;
+  --teal-bg:#0f2a2b;
+  --yellow:#f6c432;
+  --yellow-bg:#2b2410;
+  --go:#38d968;
+  --bad:#ff5d5d;
+  --btn:#232733;
+  --display:"Rubik Mono One","Arial Black",system-ui,sans-serif;
+  --body:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  color-scheme:dark;
+}
+html,body{height:100%}
+body{background:var(--night);color:var(--ink);font-family:var(--body);overflow:hidden;
+  user-select:none;-webkit-user-select:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#app{height:100%;box-sizing:border-box;display:grid;grid-template-rows:1fr auto 1fr}
+.half{position:relative;display:flex;align-items:center;justify-content:center;padding:16px;overflow:hidden;transition:background-color .12s}
+#p0{transform:rotate(180deg)}
+#p0.idle,#p0.play,#p0.wait{background:var(--teal-bg)}
+#p1.idle,#p1.play,#p1.wait{background:var(--yellow-bg)}
+.half.wait{background:var(--night)!important}
+.half.go{background:var(--go)!important;color:var(--night)}
+.half.win{background:var(--go)!important;color:var(--night)}
+.half.lose{background:#2a1416!important}
+.half.locked .opts{opacity:.25;pointer-events:none}
+.half.locked::after{content:"Locked out";position:absolute;top:16px;left:0;right:0;text-align:center;font:700 18px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--bad)}
+.panel{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:420px;text-align:center}
+.who{font:700 16px var(--body);letter-spacing:.2em;text-transform:uppercase}
+#p0 .who{color:var(--teal)} #p1 .who{color:var(--yellow)}
+.half.go .who,.half.win .who{color:var(--night)}
+.big{font-family:var(--display);font-size:clamp(26px,8.5vw,48px);line-height:1.05;text-wrap:balance}
+.huge{font-family:var(--display);font-size:clamp(56px,22vw,120px);line-height:1;font-variant-numeric:tabular-nums}
+.rule{font-size:20px;line-height:1.25;max-width:32ch;opacity:.85;text-wrap:balance}
+.eq{font-family:var(--display);font-size:clamp(30px,10vw,52px);font-variant-numeric:tabular-nums}
+.word{font-family:var(--display);font-size:clamp(34px,12vw,60px);letter-spacing:.02em}
+.opts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%}
+.opts.four{grid-template-columns:repeat(2,1fr)}
+.opts.grid{grid-template-columns:repeat(4,1fr);gap:8px}
+.opts.grid .opt{height:52px;font-size:30px}
+.opts.stack{grid-template-columns:1fr;gap:8px}
+.opts.stack .opt{height:50px;font-size:24px;letter-spacing:.02em}
+.opts.two .opt{height:84px;font:400 clamp(20px,6vw,28px) var(--display)}
+.sym{font-size:clamp(56px,20vw,100px);line-height:1;animation:pop .18s ease-out}
+@keyframes pop{from{transform:scale(.6);opacity:.3}to{transform:scale(1);opacity:1}}
+.tag{font:400 clamp(20px,6vw,30px) var(--display);letter-spacing:.06em}
+#p0{--me:var(--teal);--them:var(--yellow)} #p1{--me:var(--yellow);--them:var(--teal)}
+.rope{position:relative;width:100%;height:16px;border-radius:8px;margin-block:28px;
+  background:repeating-linear-gradient(115deg,#c9a46a 0 8px,#8a6a3a 8px 14px)}
+.rope .end{position:absolute;top:-14px;bottom:-14px;width:6px;border-radius:3px}
+.rope .them{left:0;background:var(--them)} .rope .me{right:0;background:var(--me)}
+.knot{position:absolute;top:50%;width:34px;height:34px;border-radius:50%;background:var(--ink);border:4px solid var(--night);transform:translate(-50%,-50%);transition:left .06s linear}
+.opt{font:700 26px var(--body);color:var(--ink);background:var(--btn);border:2px solid #3a4050;border-radius:14px;height:62px;font-variant-numeric:tabular-nums;touch-action:manipulation}
+.opt:focus-visible{outline:3px solid var(--ink);outline-offset:2px}
+.dots{position:relative;width:100%;height:clamp(90px,16vh,140px);border:2px dashed #3a4050;border-radius:12px}
+.dot{position:absolute;width:14px;height:14px;border-radius:50%;background:var(--ink);transform:translate(-50%,-50%)}
+.strip{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:12px;padding:10px 16px;background:var(--night);position:relative}
+.strip::before,.strip::after{content:"";position:absolute;left:0;right:0;height:6px;
+  background:repeating-conic-gradient(var(--yellow) 0 25%,var(--night) 0 50%) 0 0/12px 12px}
+.strip::before{top:-6px}.strip::after{bottom:-6px}
+.sc{font-family:var(--display);font-size:28px;font-variant-numeric:tabular-nums;display:flex;align-items:baseline;gap:8px}
+.sc small{font:700 13px var(--body);letter-spacing:.15em;text-transform:uppercase;opacity:.8}
+#s0{color:var(--teal)} #s1{color:var(--yellow);justify-content:flex-end}
+#mid{font:700 15px var(--body);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);text-align:center}
+@media (prefers-reduced-motion:reduce){.half{transition:none}}
+#mid a{color:var(--ink);text-decoration:none;border:1px solid #3a4050;border-radius:8px;padding:4px 10px;display:inline-block;margin-top:2px}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <section class="half" id="p0"></section>
+  <div class="strip">
+    <div class="sc" id="s0"><span id="n0">0</span><small>Teal</small></div>
+    <div id="mid">First to 5</div>
+    <div class="sc" id="s1"><small>Yellow</small><span id="n1">0</span></div>
+  </div>
+  <section class="half" id="p1"></section>
+</div>
+
+<script>
+const P=['Teal','Yellow'], TARGET=5;
+const halves=[document.getElementById('p0'),document.getElementById('p1')];
+let score=[0,0],round=0,state='menu',ready=[false,false],game=null,g={},timers=[],bag=[],lastGame=null;
+
+const ri=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+const shuffle=a=>{for(let i=a.length-1;i>0;i--){const j=ri(0,i);[a[i],a[j]]=[a[j],a[i]]}return a};
+function later(fn,ms){timers.push(setTimeout(fn,ms))}
+function clearTimers(){timers.forEach(clearTimeout);timers=[]}
+function set(i,html,cls){halves[i].className='half '+(cls||'');halves[i].innerHTML='<div class="panel">'+html+'</div>'}
+function both(fn){fn(0);fn(1)}
+function strip(t){document.getElementById('mid').textContent=t;document.getElementById('n0').textContent=score[0];document.getElementById('n1').textContent=score[1]}
+function buzz(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
+async function wake(){try{await navigator.wakeLock.request('screen')}catch(e){}}
+
+/* ---------- Games ---------- */
+function quiz(name,rule,make){
+  return {name,rule,
+    start(){
+      const q=make();g={q,locked:[false,false]};state='play';
+      both(i=>{
+        const opts=shuffle(q.opts.slice());
+        const cls=q.cls||(opts.length===4?'four':'');
+        const btns=opts.map(o=>{const v=typeof o==='object'?o.v:o,l=typeof o==='object'?o.l:o;return `<button class="opt" data-a="${v}">${l}</button>`}).join('');
+        set(i,`<div class="who">${P[i]}</div>${q.prompt}<div class="opts ${cls}">${btns}</div>`,'play');
+      });
+    },
+    tap(i,a){
+      if(a==null||g.locked[i])return;
+      if(String(a)===String(g.q.answer)) award(i,g.q.note,'They got it first');
+      else{
+        g.locked[i]=true;halves[i].classList.add('locked');buzz(80);
+        if(g.locked[0]&&g.locked[1]) award(null,g.q.note);
+      }
+    }};
+}
+
+const INKS=[{n:'Red',c:'#ff5d5d'},{n:'Blue',c:'#5b95ff'},{n:'Green',c:'#38d968'},{n:'Pink',c:'#ff6ad5'}];
+
+const GAMES=[
+  {name:'Quick Draw',rule:'Wait for green, then tap your half. Tap early and the point goes to your rival.',
+    start(){
+      state='play';g={go:false};
+      both(i=>set(i,'<div class="big">Wait…</div><div class="rule">Hands steady</div>','wait'));
+      later(()=>{g.go=true;buzz(40);both(i=>set(i,'<div class="huge">TAP!</div>','go'))},1600+Math.random()*3400);
+    },
+    tap(i){ if(!g.go) award(1-i,`${P[i]} jumped the light`,'Jumped the light'); else award(i,'Fastest hands in the cab','Too slow'); }
+  },
+  {name:'Tap Frenzy',rule:'Five seconds. Tap your half as many times as you can.',
+    start(){
+      state='play';g={n:[0,0]};
+      both(i=>set(i,'<div class="who">'+P[i]+'</div><div class="huge" data-count>0</div><div class="rule">Tap tap tap</div>','go'));
+      for(let s=5;s>0;s--) later(()=>strip(s+'s left'),(5-s)*1000);
+      strip('5s left');
+      later(()=>{
+        const [a,b]=g.n, note=`${a} vs ${b} taps`;
+        if(a===b) award(null,note); else award(a>b?0:1,note,note);
+      },5000);
+    },
+    tap(i){ g.n[i]++; const c=halves[i].querySelector('[data-count]'); if(c)c.textContent=g.n[i]; }
+  },
+  quiz('Mental Math','First correct answer wins. A wrong answer locks you out.',()=>{
+    const t=ri(0,2);let a,b,ans,s;
+    if(t===0){a=ri(14,59);b=ri(12,39);ans=a+b;s=`${a} + ${b}`}
+    else if(t===1){a=ri(4,12);b=ri(3,9);ans=a*b;s=`${a} × ${b}`}
+    else{a=ri(40,95);b=ri(12,29);ans=a-b;s=`${a} − ${b}`}
+    const d=t===1?[a,-a,b,-b,1,-1]:[10,-10,1,-1,2,-2];
+    const o=new Set([ans]);while(o.size<3){const v=ans+d[ri(0,d.length-1)];if(v>0)o.add(v)}
+    return{prompt:`<div class="eq">${s}</div>`,opts:[...o],answer:ans,note:`${s} = ${ans}`};
+  }),
+  quiz('Ink Trap','Ignore the word. Tap the colour of the ink.',()=>{
+    const ink=INKS[ri(0,3)];let word;do{word=INKS[ri(0,3)]}while(word===ink);
+    return{prompt:`<div class="word" style="color:${ink.c}">${word.n.toUpperCase()}</div>`,opts:INKS.map(x=>x.n),answer:ink.n,note:`The ink was ${ink.n.toLowerCase()}`};
+  }),
+  quiz('Dot Count','Count the dots. Tap the right number.',()=>{
+    const n=ri(8,17);const cells=shuffle([...Array(32).keys()]).slice(0,n);
+    const dots=cells.map(c=>{const x=(c%8)*12.5+6.25+ri(-3,3),y=Math.floor(c/8)*25+12.5+ri(-6,6);return`<span class="dot" style="left:${x}%;top:${y}%"></span>`}).join('');
+    const o=new Set([n]);const d=[1,-1,2,-2];while(o.size<3)o.add(n+d[ri(0,3)]);
+    return{prompt:`<div class="dots">${dots}</div>`,opts:[...o],answer:n,note:`There were ${n} dots`};
+  }),
+  quiz('Odd One Out','Eleven twins and one impostor. Find the odd one.',()=>{
+    const pairs=[['b','d'],['p','q'],['6','9'],['O','Q'],['M','N'],['E','F'],['8','B'],['5','S'],['m','n'],['C','G'],['V','Y']];
+    const [x,y]=pairs[ri(0,pairs.length-1)].slice().sort(()=>Math.random()-.5);
+    const odd=ri(0,11);
+    return{prompt:'',opts:[...Array(12).keys()].map(k=>({v:k,l:k===odd?y:x})),answer:odd,cls:'grid',note:`The odd one was ${y}`};
+  }),
+  quiz('Bigger One','Two values. Tap the bigger one.',()=>{
+    const t=ri(0,1);let a,b,va,vb;
+    do{
+      if(t===0){const n1=ri(1,8),d1=ri(n1+1,9),n2=ri(1,8),d2=ri(n2+1,9);a=`${n1}/${d1}`;b=`${n2}/${d2}`;va=n1/d1;vb=n2/d2}
+      else{const x=ri(6,13),y=ri(4,9);a=`${x} × ${y}`;va=x*y;vb=va+ri(-6,6);b=String(vb)}
+    }while(va===vb||Math.abs(va-vb)>(t===0?0.15:6));
+    const f=v=>Number.isInteger(v)?v:v.toFixed(2);
+    return{prompt:'',opts:[{v:'a',l:a},{v:'b',l:b}],answer:va>vb?'a':'b',cls:'two',note:`${a} is ${f(va)}, ${b} is ${f(vb)}`};
+  }),
+  quiz('Arrow Flip','SAME means tap that arrow. OPPOSITE means tap the reverse.',()=>{
+    const A=[['←','Left'],['↑','Up'],['→','Right'],['↓','Down']];
+    const k=ri(0,3),same=Math.random()<.5,ans=same?k:(k+2)%4;
+    return{prompt:`<div class="tag">${same?'SAME':'OPPOSITE'}</div><div class="sym">${A[k][0]}</div>`,
+      opts:A.map((a,j)=>({v:j,l:a[0]})),answer:ans,cls:'four',note:`Answer: ${A[ans][1]}`};
+  }),
+  quiz('Spell It','Only one is spelled right. Tap it.',()=>{
+    const W=[['accommodate','acommodate','accomodate'],['necessary','neccessary','necesary'],['definitely','definately','definitly'],
+      ['separate','seperate','separete'],['embarrass','embarass','embarras'],['occurrence','occurence','ocurrence'],
+      ['rhythm','rythm','rhythym'],['restaurant','restaraunt','resturant'],['calendar','calender','calandar'],
+      ['millennium','millenium','milennium'],['questionnaire','questionaire','questionnair'],['mischievous','mischievious','mischevous'],
+      ['privilege','priviledge','privelege'],['guarantee','garantee','guarentee'],['recommend','reccomend','recomend'],
+      ['tomorrow','tommorow','tomorow'],['beginning','begining','beggining'],['February','Febuary','Februray'],
+      ['pronunciation','pronounciation','pronuncation'],['entrepreneur','entrepeneur','entreprenuer'],['bureaucracy','beaurocracy','bureacracy']];
+    const w=W[ri(0,W.length-1)];
+    return{prompt:'',opts:w.slice(),answer:w[0],cls:'stack',note:`It's spelled ${w[0]}`};
+  }),
+  {name:'Snap',rule:'Shapes flash one by one. Tap only when a shape repeats. A false snap gives your rival the point.',
+    start(){
+      state='play';
+      const SYM=[['★','#f6c432'],['●','#2fd4c4'],['▲','#ff5d5d'],['■','#5b95ff'],['◆','#ff6ad5']];
+      const n=ri(4,9),seq=[];let prev=-1;
+      for(let k=0;k<n;k++){let s;do{s=ri(0,4)}while(s===prev);seq.push(s);prev=s}
+      seq.push(prev);g={seq,k:-1,match:false};
+      const step=()=>{
+        g.k++;const s=SYM[g.seq[g.k]];g.match=g.k===g.seq.length-1;
+        both(i=>set(i,`<div class="who">${P[i]}</div><div class="sym" style="color:${s[1]}">${s[0]}</div><div class="rule">Tap only on a repeat</div>`,'play'));
+        if(g.match)later(()=>award(null,'Both of you missed the snap'),1800);else later(step,ri(750,1100));
+      };
+      step();
+    },
+    tap(i){ if(g.k<0)return; if(g.match)award(i,'Snap!','Missed the snap'); else award(1-i,`${P[i]} snapped too soon`,'False snap'); }
+  },
+  {name:'Stop the Clock',rule:'The timer hides after a moment. Tap when you think the target time is up. Closest wins.',
+    start(){
+      state='play';const target=ri(4,8);g={target,t0:performance.now(),t:[null,null],done:false};
+      both(i=>set(i,`<div class="who">${P[i]}</div><div class="rule">Tap at</div><div class="huge">${target}.0s</div><div class="big" data-clock>0.0</div>`,'play'));
+      const tick=()=>{
+        const e=(performance.now()-g.t0)/1000;
+        both(i=>{const c=halves[i].querySelector('[data-clock]');if(c)c.textContent=e<1.5?e.toFixed(1):'?.?'});
+        if(e<1.6)later(tick,100);
+      };
+      tick();later(finishClock,(target+5)*1000);
+    },
+    tap(i){
+      if(g.t[i]!=null)return;g.t[i]=(performance.now()-g.t0)/1000;buzz(30);
+      set(i,`<div class="who">${P[i]}</div><div class="big">Locked in</div><div class="rule">Waiting for ${P[1-i]}</div>`,'wait');
+      if(g.t[1-i]!=null)finishClock();
+    }
+  },
+  {name:'Tug of War',rule:'Every tap drags the knot toward you. Pull it over your line or lead after 10 seconds.',
+    start(){
+      state='play';g={pos:0};
+      both(i=>set(i,`<div class="who">${P[i]}</div><div class="rope"><i class="end them"></i><i class="end me"></i><span class="knot"></span></div><div class="rule">Pull! Your line is on the right.</div>`,'play'));
+      drawTug();strip('10s left');
+      for(let s=9;s>0;s--)later(()=>strip(s+'s left'),(10-s)*1000);
+      later(()=>{const p=g.pos;if(p===0)award(null,'Dead even');else{const w=p>0?1:0;award(w,`Ahead by ${Math.abs(p)} pulls at the buzzer`,'Behind at the buzzer')}},10000);
+    },
+    tap(i){ g.pos+=i===1?1:-1;drawTug(); if(Math.abs(g.pos)>=15)award(i,'Dragged it over the line','Pulled over the line'); }
+  }
+];
+function drawTug(){
+  both(i=>{const k=halves[i].querySelector('.knot');if(!k)return;const lead=i===1?g.pos:-g.pos;k.style.left=(50+lead/15*50)+'%'});
+}
+function finishClock(){
+  if(state!=='play')return;
+  const f=t=>t==null?'no tap':t.toFixed(2)+'s';
+  const d=g.t.map(t=>t==null?Infinity:Math.abs(t-g.target));
+  const note=`Target ${g.target}.00s · Teal ${f(g.t[0])} · Yellow ${f(g.t[1])}`;
+  if(d[0]===d[1])award(null,note);else award(d[0]<d[1]?0:1,note,note);
+}
+
+/* ---------- Flow ---------- */
+function menu(){
+  clearTimers();state='menu';ready=[false,false];score=[0,0];round=0;bag=[];lastGame=null;strip('First to 5');
+  document.getElementById('mid').innerHTML='First to 5<br><a href="./">‹ Menu</a>';
+  both(i=>set(i,`<div class="who">${P[i]}</div><div class="big">Tap to ready</div><div class="rule">Hold the phone flat between you. The half facing you is yours.</div>`,'idle'));
+}
+function pickGame(){
+  if(!bag.length)bag=shuffle(GAMES.slice());
+  if(bag[bag.length-1]===lastGame&&bag.length>1)bag.unshift(bag.pop());
+  lastGame=bag.pop();return lastGame;
+}
+function nextRound(){
+  clearTimers();round++;game=pickGame();state='intro';strip('Round '+round);
+  both(i=>set(i,`<div class="who">${P[i]}</div><div class="big">${game.name}</div><div class="rule">${game.rule}</div>`,'idle'));
+  ['3','2','1'].forEach((n,k)=>later(()=>{strip(n);both(i=>{const p=halves[i].querySelector('.panel');let c=p.querySelector('.huge');if(!c){c=document.createElement('div');c.className='huge';p.appendChild(c)}c.textContent=n})},2200+k*650));
+  later(()=>{strip('Round '+round);game.start()},2200+3*650);
+}
+function award(w,note,loseMsg){
+  if(state!=='play')return;
+  clearTimers();state='result';
+  if(w===null){
+    both(i=>set(i,`<div class="big">No point</div><div class="rule">${note}</div>`,'idle'));
+  }else{
+    score[w]++;buzz([60,40,60]);
+    set(w,`<div class="who">${P[w]}</div><div class="huge">+1</div><div class="rule">${note}</div>`,'win');
+    set(1-w,`<div class="who">${P[1-w]}</div><div class="big">${loseMsg||'Too slow'}</div><div class="rule">${note}</div>`,'lose');
+  }
+  strip(`${score[0]} – ${score[1]}`);
+  later(()=>{ if(score[0]>=TARGET||score[1]>=TARGET) finale(); else nextRound(); },2000);
+}
+function finale(){
+  state='over';const w=score[0]>score[1]?0:1;strip('Final '+score[0]+' – '+score[1]);
+  set(w,`<div class="who">${P[w]}</div><div class="big">Champion of the back seat</div><div class="rule">Final score ${score[w]} – ${score[1-w]}</div>`,'win');
+  set(1-w,`<div class="who">${P[1-w]}</div><div class="big">Snacks are on you</div><div class="rule">Final score ${score[1-w]} – ${score[w]}</div>`,'lose');
+  later(()=>{state='rematch';both(i=>halves[i].querySelector('.panel').insertAdjacentHTML('beforeend','<div class="rule"><b>Tap for a rematch</b></div>'))},1400);
+}
+function handle(i,a){
+  if(state==='menu'){
+    if(ready[i])return;ready[i]=true;wake();buzz(30);
+    set(i,`<div class="who">${P[i]}</div><div class="big">Ready</div><div class="rule">${ready[1-i]?'Here we go':'Waiting for '+P[1-i]}</div>`,'win');
+    if(ready[0]&&ready[1]){state='starting';later(nextRound,800)}
+  }else if(state==='play'){game.tap(i,a)}
+  else if(state==='rematch'){menu()}
+}
+halves.forEach((h,i)=>h.addEventListener('pointerdown',e=>{
+  e.preventDefault();const b=e.target.closest('[data-a]');handle(i,b?b.dataset.a:null);
+}));
+menu();
+</script>
+
+</body>
+</html>
